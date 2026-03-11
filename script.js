@@ -146,9 +146,8 @@ class MusicTimer {
             // Статический цвет из настроек
             color = settings.customColor.value;
         } else {
-            // Динамический цвет из заголовка страницы (имя пользователя)
-            const titleElement = document.querySelector('.UserProfile_userName__PTRuJ');
-            color = titleElement ? window.getComputedStyle(titleElement).color : '#ffffff';
+            // Динамический цвет из CSS-переменной Яндекс Музыки
+            color = 'var(--ym-controls-color-primary-text-enabled_variant, #ffffff)';
         }
 
         this.timerElement.style.cssText = `
@@ -205,9 +204,8 @@ class MusicTimer {
             // Статический цвет из настроек
             color = settings.customColor.value;
         } else {
-            // Динамический цвет из заголовка страницы (имя пользователя)
-            const titleElement = document.querySelector('.UserProfile_userName__PTRuJ');
-            color = titleElement ? window.getComputedStyle(titleElement).color : '#ffffff';
+            // Динамический цвет из CSS-переменной Яндекс Музыки
+            color = 'var(--ym-controls-color-primary-text-enabled_variant, #ffffff)';
         }
         
         if (this.timerElement) {

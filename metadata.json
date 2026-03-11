@@ -2,7 +2,7 @@
     "name": "YandexMusicTime",
     "author": "dobryjigrok",
     "description": "Отображает время, проведенное в Яндекс Музыке",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "css": "style.css",
     "type": "script",
     "script": "script.js",
