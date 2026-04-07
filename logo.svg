@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 250 250" width="250" height="250">
+  <!-- Фон -->
+  <rect width="250" height="250" rx="40" fill="#1a1a1a"/>
+
+  <!-- Циферблат -->
+  <circle cx="125" cy="125" r="82" fill="#2a2a2a" stroke="#c0a0ff" stroke-width="6"/>
+
+  <!-- Деления часов -->
+  <line x1="125" y1="47" x2="125" y2="61" stroke="#c0a0ff" stroke-width="5" stroke-linecap="round" opacity="0.7"/>
+  <line x1="125" y1="189" x2="125" y2="203" stroke="#c0a0ff" stroke-width="5" stroke-linecap="round" opacity="0.7"/>
+  <line x1="43" y1="125" x2="57" y2="125" stroke="#c0a0ff" stroke-width="5" stroke-linecap="round" opacity="0.7"/>
+  <line x1="193" y1="125" x2="207" y2="125" stroke="#c0a0ff" stroke-width="5" stroke-linecap="round" opacity="0.7"/>
+
+  <!-- Часовая стрелка (~10 часов) -->
+  <line x1="125" y1="125" x2="93" y2="91" stroke="#c0a0ff" stroke-width="8" stroke-linecap="round"/>
+  <!-- Минутная стрелка (~2 часа) -->
+  <line x1="125" y1="125" x2="163" y2="95" stroke="#c0a0ff" stroke-width="6" stroke-linecap="round"/>
+
+  <!-- Центральная точка -->
+  <circle cx="125" cy="125" r="8" fill="#c0a0ff"/>
+
+  <!-- Нотка (между 3 и 6 часами) -->
+  <g fill="#c0a0ff" opacity="0.9" transform="translate(148, 147) scale(1.8)">
+    <ellipse cx="8" cy="14" rx="6" ry="4" transform="rotate(-15 8 14)"/>
+    <rect x="13" y="-4" width="2.5" height="20" rx="1.2"/>
+    <path d="M15.5 -4 Q24 0 22 8 Q18 4 15.5 6 Z"/>
+  </g>
+</svg>
