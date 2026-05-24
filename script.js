@@ -1,65 +1,44 @@
-// Получение настроек из PulseSync
-async function getSettings(name) {
-    try {
-        const response = await fetch(`http://localhost:2007/get_handle?name=${name}`);
-        if (!response.ok) throw new Error(`Ошибка сети: ${response.status}`);
-  
-        const { data } = await response.json();
-        if (!data?.sections) {
-            console.warn("Структура данных не соответствует ожидаемой");
-            return null;
+// ─── PulseSync API helpers ────────────────────────────────────────────────────
+
+/**
+ * Возвращает store настроек через новое window.pulsesyncApi.
+ * Если API недоступно — возвращает заглушку, чтобы аддон не падал.
+ */
+function getAddonSettings(addonName) {
+    return (
+        window.pulsesyncApi?.getSettings(addonName) ?? {
+            getCurrent: () => ({}),
+            onChange: () => () => {},
         }
-
-        return transformJSON(data);
-    } catch (error) {
-        console.error(error);
-        return null;
-    }
+    );
 }
 
-// Преобразование настроек в удобный формат
-function transformJSON(data) {
-    const result = {};
-
-    try {
-        data.sections.forEach(section => {
-            section.items.forEach(item => {
-                if (item.type === "text" && item.buttons) {
-                    result[item.id] = {};
-                    item.buttons.forEach(button => {
-                        result[item.id][button.id] = {
-                            value: button.text,
-                            default: button.defaultParameter
-                        };
-                    });
-                } else {
-                    // Правильное определение значения в зависимости от типа
-                    let value;
-                    if (item.type === "button") {
-                        value = item.bool;
-                    } else if (item.type === "color") {
-                        value = item.input;
-                    } else if (item.type === "selector") {
-                        value = item.selected;
-                    } else if (item.type === "slider") {
-                        value = item.value;
-                    } else if (item.type === "file") {
-                        value = item.filePath;
-                    }
-                    
-                    result[item.id] = {
-                        value: value,
-                        default: item.defaultParameter
-                    };
-                }
-            });
-        });
-    } finally {
-        return result;
+/**
+ * Читает значение настройки из плоского объекта настроек.
+ * PulseSync может отдавать как { value, default }, так и голое значение.
+ */
+function unwrapSetting(entry, fallback) {
+    if (entry !== null && entry !== undefined && typeof entry === 'object' && !Array.isArray(entry)) {
+        if (typeof entry.value !== 'undefined') return entry.value;
+        if (typeof entry.default !== 'undefined') return entry.default;
     }
+    return typeof entry !== 'undefined' ? entry : fallback;
 }
 
-// Класс для управления таймером
+function readBool(settings, key, fallback) {
+    return Boolean(unwrapSetting(settings[key], fallback));
+}
+
+function readNumber(settings, key, fallback) {
+    return Number(unwrapSetting(settings[key], fallback));
+}
+
+function readString(settings, key, fallback) {
+    return String(unwrapSetting(settings[key], fallback));
+}
+
+// ─── MusicTimer ───────────────────────────────────────────────────────────────
+
 class MusicTimer {
     constructor() {
         this.totalTime = this.loadTime();
@@ -69,24 +48,20 @@ class MusicTimer {
         this.lastResetState = false;
     }
 
-    // Загрузка сохраненного времени
     loadTime() {
         const saved = localStorage.getItem('yandexMusicTotalTime');
         return saved ? parseInt(saved, 10) : 0;
     }
 
-    // Сохранение времени
     saveTime() {
         localStorage.setItem('yandexMusicTotalTime', this.totalTime.toString());
     }
 
-    // Сброс времени
     resetTime() {
         this.totalTime = 0;
         this.saveTime();
     }
 
-    // Запуск таймера
     start() {
         if (!this.isPlaying) {
             this.isPlaying = true;
@@ -94,7 +69,6 @@ class MusicTimer {
         }
     }
 
-    // Остановка таймера
     stop() {
         if (this.isPlaying) {
             this.isPlaying = false;
@@ -104,53 +78,34 @@ class MusicTimer {
         }
     }
 
-    // Получение текущего времени
     getCurrentTime() {
         let time = this.totalTime;
         if (this.isPlaying && this.startTime) {
-            const elapsed = Math.floor((Date.now() - this.startTime) / 1000);
-            time += elapsed;
+            time += Math.floor((Date.now() - this.startTime) / 1000);
         }
         return time;
     }
 
-    // Форматирование времени
     formatTime(seconds, showSeconds = true) {
         const hours = Math.floor(seconds / 3600);
         const minutes = Math.floor((seconds % 3600) / 60);
         const secs = seconds % 60;
-
-        if (showSeconds) {
-            return `${hours}ч ${minutes}м ${secs}с`;
-        } else {
-            return `${hours}ч ${minutes}м`;
-        }
+        return showSeconds
+            ? `${hours}ч ${minutes}м ${secs}с`
+            : `${hours}ч ${minutes}м`;
     }
 
-    // Создание элемента таймера
-    createTimerElement(settings) {
-        if (this.timerElement) {
-            this.timerElement.remove();
-        }
+    getPositionCSS(positionValue) {
+        const positions = {
+            1: 'top: 0px; left: 50%; transform: translateX(-50%);',
+            2: 'top: 0px; left: 0px;',
+            3: 'bottom: 0px; left: 0px;',
+        };
+        return positions[positionValue] || positions[1];
+    }
 
-        this.timerElement = document.createElement('div');
-        this.timerElement.id = 'yandex-music-timer';
-        
-        // Применение стилей на основе настроек
-        const position = this.getPosition(settings.timerPosition.value);
-        const fontSize = settings.fontSize.value;
-        
-        // Определяем цвет: статический или динамический
-        let color;
-        if (settings.timerColor.value === true) {
-            // Статический цвет из настроек
-            color = settings.customColor.value;
-        } else {
-            // Динамический цвет из CSS-переменной Яндекс Музыки
-            color = 'var(--ym-controls-color-primary-text-enabled_variant, #ffffff)';
-        }
-
-        this.timerElement.style.cssText = `
+    buildCSS(position, color, fontSize) {
+        return `
             position: fixed;
             ${position}
             color: ${color};
@@ -166,23 +121,12 @@ class MusicTimer {
             align-items: center;
             box-sizing: border-box;
         `;
-
-        document.body.appendChild(this.timerElement);
     }
 
-    // Определение позиции таймера
-    getPosition(positionValue) {
-        const positions = {
-            1: 'top: 0px; left: 50%; transform: translateX(-50%);',
-            2: 'top: 0px; left: 0px;',
-            3: 'bottom: 0px; left: 0px;'
-        };
-        return positions[positionValue] || positions[1];
-    }
-
-    // Обновление отображения таймера
     updateDisplay(settings) {
-        if (!settings.showTimer.value) {
+        const showTimer = readBool(settings, 'showTimer', true);
+
+        if (!showTimer) {
             if (this.timerElement) {
                 this.timerElement.remove();
                 this.timerElement = null;
@@ -191,59 +135,43 @@ class MusicTimer {
         }
 
         if (!this.timerElement) {
-            this.createTimerElement(settings);
+            this.timerElement = document.createElement('div');
+            this.timerElement.id = 'yandex-music-timer';
+            document.body.appendChild(this.timerElement);
         }
 
+        const positionValue = readNumber(settings, 'timerPosition', 1);
+        const useStaticColor = readBool(settings, 'timerColor', false);
+        const customColor = readString(settings, 'customColor', '#ffffff');
+        const fontSize = readNumber(settings, 'fontSize', 12);
+        const showSeconds = readBool(settings, 'showSeconds', true);
+        const showIcon = readBool(settings, 'showIcon', false);
+
+        const color = useStaticColor
+            ? customColor
+            : 'var(--ym-controls-color-primary-text-enabled_variant, #ffffff)';
+
+        const position = this.getPositionCSS(positionValue);
         const currentTime = this.getCurrentTime();
-        const formattedTime = this.formatTime(currentTime, settings.showSeconds.value);
-        const icon = settings.showIcon.value ? '🎵 ' : '';
-        
-        // Определяем цвет: статический или динамический
-        let color;
-        if (settings.timerColor.value === true) {
-            // Статический цвет из настроек
-            color = settings.customColor.value;
-        } else {
-            // Динамический цвет из CSS-переменной Яндекс Музыки
-            color = 'var(--ym-controls-color-primary-text-enabled_variant, #ffffff)';
-        }
-        
-        if (this.timerElement) {
-            this.timerElement.textContent = `${icon}${formattedTime}`;
-            
-            // Обновление стилей при изменении настроек
-            const position = this.getPosition(settings.timerPosition.value);
-            const fontSize = settings.fontSize.value;
-            
-            this.timerElement.style.cssText = `
-                position: fixed;
-                ${position}
-                color: ${color};
-                padding: 10px 15px;
-                font-size: ${fontSize}px;
-                font-family: 'YS Text', Arial, sans-serif;
-                z-index: 10000;
-                pointer-events: none;
-                user-select: none;
-                max-height: 32px;
-                height: 32px;
-                display: flex;
-                align-items: center;
-                box-sizing: border-box;
-            `;
-        }
+        const formattedTime = this.formatTime(currentTime, showSeconds);
+        const icon = showIcon ? '🎵 ' : '';
+
+        this.timerElement.textContent = `${icon}${formattedTime}`;
+        this.timerElement.style.cssText = this.buildCSS(position, color, fontSize);
     }
 }
 
-// Инициализация таймера
+// ─── Инициализация ────────────────────────────────────────────────────────────
+
 const musicTimer = new MusicTimer();
 
-// Функция для проверки состояния воспроизведения
+// Текущие настройки (обновляются реактивно через onChange)
+let currentSettings = {};
+
 function checkPlaybackState() {
-    // Проверяем наличие кнопки паузы (означает, что музыка играет)
-    const playButton = document.querySelector('[data-test-id="PLAY_BUTTON"]');
     const pauseButton = document.querySelector('[data-test-id="PAUSE_BUTTON"]');
-    
+    const playButton = document.querySelector('[data-test-id="PLAY_BUTTON"]');
+
     if (pauseButton) {
         musicTimer.start();
     } else if (playButton) {
@@ -251,28 +179,37 @@ function checkPlaybackState() {
     }
 }
 
-// Применение настроек
-async function applySettings() {
-    const settings = await getSettings("YandexMusicTime");
-    if (!settings) return;
-
-    // Проверка на сброс статистики
-    if (settings.resetButton.value === true && !musicTimer.lastResetState) {
+function applySettings(settings) {
+    // Сброс статистики
+    const resetValue = readBool(settings, 'resetButton', false);
+    if (resetValue === true && !musicTimer.lastResetState) {
         musicTimer.resetTime();
         musicTimer.lastResetState = true;
-    } else if (settings.resetButton.value === false) {
+    } else if (resetValue === false) {
         musicTimer.lastResetState = false;
     }
 
-    // Обновление отображения
     musicTimer.updateDisplay(settings);
 }
 
-// Основной цикл обновления
+// Подключаемся к новому API настроек PulseSync
+const settingsStore = getAddonSettings('YandexMusicTime');
+currentSettings = settingsStore.getCurrent();
+
+// Реактивное обновление при изменении настроек пользователем
+settingsStore.onChange(nextSettings => {
+    currentSettings = nextSettings;
+    applySettings(currentSettings);
+});
+
+// Интервал только для обновления таймера и состояния воспроизведения
 setInterval(() => {
     checkPlaybackState();
-    applySettings();
+    musicTimer.updateDisplay(currentSettings);
 }, 1000);
+
+// Первичное применение настроек
+applySettings(currentSettings);
 
 // Сохранение времени при закрытии страницы
 window.addEventListener('beforeunload', () => {
