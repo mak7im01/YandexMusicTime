@@ -1,9 +1,9 @@
 {
     "name": "YandexMusicTime",
-    "libraryLogo": "logo.svg",
+    "libraryLogo": "logo.png",
     "author": "dobryjigrok",
     "description": "Отображает время, проведенное в Яндекс Музыке",
-    "version": "1.1.1",
+    "version": "1.1.2",
     "css": "style.css",
     "type": "script",
     "script": "script.js",
@@ -13,8 +13,8 @@
         "statistics",
         "utility"
     ],
-    "image": "logo.svg",
-    "banner": "banner.svg",
+    "image": "logo.png",
+    "banner": "banner.png",
     "fromPext": true,
     "installSource": "local",
     "id": "bf813e91d77a03834cb32cb2",
