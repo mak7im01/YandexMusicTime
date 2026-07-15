@@ -1,11 +1,17 @@
 {
+    "id": "708d64df-6691-4659-acdc-4351765e2d12",
     "name": "YandexMusicTime",
-    "libraryLogo": "logo.png",
-    "author": "dobryjigrok",
     "description": "Отображает время, проведенное в Яндекс Музыке",
-    "version": "1.1.2",
-    "css": "style.css",
+    "version": "2.0.0",
+    "author": [
+        "dobryjigrok",
+        "dieugh"
+    ],
     "type": "script",
+    "image": "logo.png",
+    "banner": "banner.png",
+    "libraryLogo": "logo.png",
+    "css": "style.css",
     "script": "script.js",
     "tags": [
         "script",
@@ -13,10 +19,11 @@
         "statistics",
         "utility"
     ],
-    "image": "logo.png",
-    "banner": "banner.png",
+    "dependencies": [],
+    "conflictsWith": [],
+    "allowedUrls": [],
+    "supportedVersions": [],
     "fromPext": true,
     "installSource": "local",
-    "id": "bf813e91d77a03834cb32cb2",
-    "storeAddonId": "708d64df-6691-4659-acdc-4351765e2d12"
+    "packageHash": "a32c39eefea9810f1a864f884f5a8b78030a25e0369b6d70a9916f21efce6680"
 }
