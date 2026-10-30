@@ -70,6 +70,7 @@
 Старые копии формата 1 без привязки к аккаунту нужно экспортировать заново в новой версии. После восстановления дни стрика считаются по обычным правилам: пропущенные дни не прибавляются, рекорд сохраняется.
 
 ## Скриншоты
-
-<img width="1680" height="236" alt="image" src="https://github.com/user-attachments/assets/c4a8d4a0-8e9a-4c4e-a1ba-e4045cea936d" />
-<img width="1680" height="236" alt="image" src="https://github.com/user-attachments/assets/36fb8028-1851-408d-aab5-65a83aec8e78" />
+<img width="1679" height="355" alt="YandexMusicTime_1" src="https://github.com/user-attachments/assets/521f90cd-44e0-4eac-9e53-26ad3f2e96d6" />
+<img width="1679" height="355" alt="YandexMusicTime_2" src="https://github.com/user-attachments/assets/c18f9f75-60e9-4f8e-8921-ec8b1ba17812" />
+<img width="1679" height="355" alt="YandexMusicTime_3" src="https://github.com/user-attachments/assets/aaa927bf-3671-4633-9de1-6f67eee97006" />
+<img width="1679" height="355" alt="YandexMusicTime_4" src="https://github.com/user-attachments/assets/9d07a1da-50d9-4d55-9049-1c3de1a737e0" />
