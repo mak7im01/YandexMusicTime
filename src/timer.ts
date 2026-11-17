@@ -17,6 +17,7 @@ export interface TimerSettings {
     fontSize: number
     showSeconds: boolean
     showIcon: boolean
+    showNavbarButton: boolean
 }
 
 export interface TimerState {
@@ -43,6 +44,7 @@ export interface TimerManager {
     getWeeklyStats(): Promise<WeekStats>
     resetStats(): Promise<void>
     updateDisplay(s: TimerSettings): void
+    removeDisplay(): void
     saveCurrentSessionAsPrevious(): void
     isPlaying(): boolean
     setPlayingFromUI(playing: boolean): void
@@ -140,7 +142,8 @@ export function createTimerManager(
             return
         }
 
-        if (!state.timerElement) {
+        if (!state.timerElement?.isConnected) {
+            for (const previous of document.querySelectorAll('[id="yandex-music-timer"]')) previous.remove()
             state.timerElement = document.createElement('div')
             state.timerElement.id = 'yandex-music-timer'
             document.body.appendChild(state.timerElement)
@@ -282,6 +285,10 @@ export function createTimerManager(
         },
 
         updateDisplay,
+        removeDisplay() {
+            state.timerElement?.remove()
+            state.timerElement = null
+        },
 
         saveCurrentSessionAsPrevious() {
             localStorage.setItem(PREV_SESSION_KEY, String(currentSessionSeconds()))

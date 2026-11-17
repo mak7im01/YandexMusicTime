@@ -148,7 +148,7 @@ export interface StreakManager {
 export function createStreakManager(
     win: Window,
     onChange: () => void,
-    logger: Console = console,
+    logger: Pick<Console, 'warn'> = console,
 ): StreakManager {
     let state: StreakState | null = null
     let previewDays: number | null = null

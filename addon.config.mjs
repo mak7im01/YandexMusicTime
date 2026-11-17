@@ -3,7 +3,7 @@ const addonConfig = {
     directoryName: '708d64df-6691-4659-acdc-4351765e2d12',
     name: 'YandexMusicTime',
     description: 'Отображает время, проведенное в Яндекс Музыке',
-    version: '3.0.0',
+    version: '3.0.1',
     author: ['dobryjigrok', 'dieugh'],
     type: 'web-addon',
     image: 'Assets/logo.png',

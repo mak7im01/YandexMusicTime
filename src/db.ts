@@ -178,8 +178,11 @@ export async function migrateLegacyTime(): Promise<void> {
     localStorage.removeItem(LEGACY_KEY)
 }
 
-export function closeDB(logger?: Console): void {
-    dbPromise?.then(db => db.close()).catch(e => logger?.warn('Не удалось закрыть базу статистики', e))
+export function closeDB(logger?: { warn: (...args: unknown[]) => void }): void {
+    const previous = dbPromise
+    dbPromise = null
+    invalidateCache()
+    previous?.then(db => db.close()).catch(e => logger?.warn('Не удалось закрыть базу статистики', e))
 }
 
 export { openDB, invalidateCache }

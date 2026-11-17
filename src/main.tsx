@@ -11,6 +11,7 @@ import { createNavbarManager } from './navbar'
 import { createShareHelpers, createWeeklyModal, createBackupModal, createStatsModal, type ModalEnv } from './modals'
 import { migrateLegacyTime, closeDB } from './db'
 import type { TimerSettings } from './timer'
+import { claimAddonInstance, removeAddonElements, type InstanceLease } from './lifecycle'
 
 export default defineAddon({
     id: addonConfig.id,
@@ -20,15 +21,20 @@ export default defineAddon({
     async start(api) {
         // ── Lifecycle flags ──
         let destroyed = false
+        let cleanupCompleted = false
+        let instanceLease: InstanceLease | null = null
         let restoring = false
-        const isDestroyed = () => destroyed
+        const isDestroyed = () => destroyed || instanceLease?.isCurrent() === false
+        function canRun() {
+            if (isDestroyed()) { if (!destroyed) destroy(); return false }
+            return true
+        }
         const isRestoring = () => restoring
         const setRestoring = (v: boolean) => { restoring = v }
 
         // Mark as destroyed immediately if PulseSync disposes the addon
         // before our async init completes
         if (api.signal?.aborted) return () => {}
-        api.signal?.addEventListener('abort', () => { destroyed = true }, { once: true })
 
         // ── Cleanup registry ──
         const cleanups: Array<() => void> = []
@@ -40,21 +46,21 @@ export default defineAddon({
         const activeRafs = new Set<number>()
 
         function scheduleTimeout(fn: () => void, ms: number): number {
-            const id = window.setTimeout(() => { activeTimeouts.delete(id); if (!destroyed) fn() }, ms)
+            const id = window.setTimeout(() => { activeTimeouts.delete(id); if (canRun()) fn() }, ms)
             activeTimeouts.add(id)
             return id
         }
         function clearScheduledTimeout(id: number) { window.clearTimeout(id); activeTimeouts.delete(id) }
 
         function addInterval(fn: () => void, ms: number): number {
-            const id = window.setInterval(() => { if (!destroyed) fn() }, ms)
+            const id = window.setInterval(() => { if (canRun()) fn() }, ms)
             activeIntervals.add(id)
             return id
         }
         function removeInterval(id: number) { window.clearInterval(id); activeIntervals.delete(id) }
 
         function requestFrame(cb: FrameRequestCallback): number {
-            const id = window.requestAnimationFrame(ts => { activeRafs.delete(id); if (!destroyed) cb(ts) })
+            const id = window.requestAnimationFrame(ts => { activeRafs.delete(id); if (canRun()) cb(ts) })
             activeRafs.add(id)
             return id
         }
@@ -62,8 +68,9 @@ export default defineAddon({
 
         // ── Event listener helper ──
         function listen(target: EventTarget, event: string, cb: (...a: any[]) => any) {
-            target.addEventListener(event, cb)
-            onCleanup(() => target.removeEventListener(event, cb))
+            const listener = (...args: any[]) => { if (canRun()) cb(...args) }
+            target.addEventListener(event, listener)
+            onCleanup(() => target.removeEventListener(event, listener))
         }
 
         // ── Settings accessor ──
@@ -148,13 +155,15 @@ export default defineAddon({
 
         // ── Player listener ──
         let unsubPlayer: (() => void) | null = null
-        function initPlayer() {
+        async function initPlayer() {
+            let changed = false
             unsubPlayer = api.player.onChange(state => {
-                if (!destroyed && !restoring) timer.setPlayingFromUI(!!state?.isPlaying)
+                changed = true
+                if (canRun() && !restoring) timer.setPlayingFromUI(!!state?.isPlaying)
             })
             try {
-                const snap = api.player.getSnapshot()
-                if (!destroyed && !restoring) timer.setPlayingFromUI(!!snap?.isPlaying)
+                const snap = await api.player.getSnapshot()
+                if (!changed && canRun() && !restoring) timer.setPlayingFromUI(!!snap?.isPlaying)
             } catch {
                 // addon may have been disposed between awaits
             }
@@ -166,7 +175,7 @@ export default defineAddon({
         function initSettings() {
             const addonSettings = api.settings ?? { getCurrent: () => ({}), onChange: () => () => {} }
             unsubSettings = addonSettings.onChange(raw => {
-                if (destroyed) return
+                if (!canRun()) return
                 const s = getSettings()
                 timer.updateDisplay(s)
                 navbar.updateVisibility(s.showNavbarButton)
@@ -212,10 +221,13 @@ export default defineAddon({
 
         // ── Destroy function ──
         function destroy() {
-            if (destroyed) return
+            if (cleanupCompleted) return
+            const owned = instanceLease?.isCurrent() === true
+            cleanupCompleted = true
             destroyed = true
             streak.destroy()
             timer.stop()
+            timer.removeDisplay()
             if (tickMain !== null || tickModals !== null) stopTickers()
             destroyPlayer()
             unsubSettings?.()
@@ -231,13 +243,16 @@ export default defineAddon({
             for (const fn of cleanups) { try { fn() } catch {} }
             cleanups.length = 0
 
-            // Remove all DOM elements
-            for (const id of [
-                'yandex-music-timer', 'ym-stats-modal', 'ym-weekly-stats-modal',
-                'ym-reset-confirm-modal', 'ym-backup-modal', 'ym-toast-container', 'ym-stats-tooltip',
-            ]) document.getElementById(id)?.remove()
-            document.getElementById('ym-stats-button')?.closest('li')?.remove()
+            if (owned) removeAddonElements()
         }
+
+        // Cleanup must run on abort itself, including while async start is pending.
+        api.onCleanup(destroy)
+        api.signal?.addEventListener('abort', destroy, { once: true })
+        onCleanup(() => api.signal?.removeEventListener('abort', destroy))
+        if (api.signal?.aborted) { destroy(); return destroy }
+        instanceLease = claimAddonInstance(destroy)
+        onCleanup(() => instanceLease?.release())
 
         // ── Initialise ──
         try {
@@ -245,13 +260,14 @@ export default defineAddon({
             initSettings()
 
             await migrateLegacyTime()
-            if (destroyed) return destroy
+            if (!canRun()) return destroy
 
             await timer.loadTotalTime()
-            if (destroyed) return destroy
+            if (!canRun()) return destroy
 
             streak.start()
-            initPlayer()
+            await initPlayer()
+            if (!canRun()) return destroy
             navbar.init()
             timer.updateDisplay(getSettings())
             navbar.updateVisibility(getSettings().showNavbarButton)
